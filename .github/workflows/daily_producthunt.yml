@@ -1,0 +1,44 @@
+name: Daily ProductHunt Article Generator
+
+on:
+  schedule:
+    - cron: '0 21 * * *'  # 毎日JST 06:00（UTC 21:00）
+  workflow_dispatch:        # 手動実行も可能
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install anthropic requests
+
+      - name: Generate articles
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PRODUCTHUNT_TOKEN: ${{ secrets.PRODUCTHUNT_TOKEN }}
+        run: python scripts/generate_article.py
+
+      - name: Commit and push articles
+        run: |
+          git config user.name  "ai-fukugyolab-bot"
+          git config user.email "formaruhauto.1@gmail.com"
+          git add articles/
+          if git diff --staged --quiet; then
+            echo "新しい記事なし。スキップします。"
+          else
+            git commit -m "auto: ProductHunt日本語解説記事を追加 $(date '+%Y-%m-%d')"
+            git push
+          fi
